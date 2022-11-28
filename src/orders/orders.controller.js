@@ -37,41 +37,60 @@ function create(req, res) {
     res.status(201).json({ data: newOrder });
   }
  
-function hasAllProps(req, res, next){
-    const { data: { deliverTo, mobileNumber, dishes } = {} } = req.body;
-    if(!deliverTo){
-        next ({
-            status: 400,
-            message: "Order must include deliverTo"
-        })
-    } 
-    if (!mobileNumber) {
+function deliverToValidation(req, res, next) {
+  const { data: { deliverTo } } = req.body;
+  if(deliverTo) {
+    res.locals.deliverTo = deliverTo;
+    return next();
+  }
+  next({
+    status: 400,
+    message: "Order must include deliverTo"
+  });
+};
+function mobileNumberValidation(req, res, next) {
+  const { data: { mobileNumber } } = req.body;
+  if(mobileNumber) {
+    res.locals.mobileNumber = mobileNumber;
+    return next();
+  }
+  next({
+    status: 400,
+    message: "Order must include mobileNumber"
+  });
+};
+function dishesValidation(req, res, next) {
+  const { data: { dishes } } = req.body;
+  if(dishes) {
+    res.locals.dishes = dishes;
+    return next();
+  }
+  next({
+    status: 400,
+    message: "Order must include a dish"
+  });
+};
+function dishesArrayValidation(req, res, next) {
+  const dishes = res.locals.dishes;
+  if((Array.isArray(dishes) && dishes.length > 0)) {
+    return next();
+  }
+  next({
+    status: 400,
+    message: "Order must include at least one dish"
+  })
+}
+function dishOfDishesValidation(req, res, next) {
+  const dishes = res.locals.dishes;
+  dishes.forEach((dish, i) => {
+    if (!Number.isInteger(dish.quantity) || dish.quantity <= 0) {
         next({
-            status: 400,
-            message: "Order must include mobileNumber"
-        })
-    } 
-    if (!dishes) {
-        next({
-            status: 400,
-            message: "Order must include a dish"
-        })
-    }
-    if(!(Array.isArray(dishes) && dishes.length > 0)){
-        next({
-            status: 400,
-            message: "Order must include at least one dish"
-        })
-    }
-    dishes.forEach((dish, i) => {
-        if (!Number.isInteger(dish.quantity) || dish.quantity <= 0) {
-            next({
-              status: 400,
-              message: `Dish ${i} must have a quantity that is an integer greater than 0`,
-            })
-        }
-    })
-    next()
+          status: 400,
+          message: `Dish ${i} must have a quantity that is an integer greater than 0`,
+        });
+    };
+  });
+  next();
 }
 
 function update(req, res) {
@@ -84,6 +103,41 @@ function update(req, res) {
 
     res.json({data: order})
 }
+
+function idValidation(req, res, next) {
+  const { orderId } = req.params;
+  const { data: { id } = {} } = req.body;
+
+  if(id && id !== orderId) {
+      next({
+        status: 400,
+        message:`Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
+      });  
+  }
+  next();
+};
+function statusPendingValidation(req, res, next) {
+  const { data: { status } = {} } = req.body;
+  if (status && ["pending", "preparing", "out-for-delivery", "delivered"].includes(status)) {
+    next();
+  };
+  next({
+    status: 400,
+    message: "Order must have a status of pending, preparing, out-for-delivery, delivered",
+  });
+};
+function statusDeliveredValidation (req, res, next) {
+  const order = res.locals.order;
+
+
+  if(order.status === "delivered"){
+    next({
+        status: 400,
+        message: "A delivered order cannot be changed",
+    })
+  };
+  next();
+};
 
 function updateValidate(req, res, next) {
     const { orderId } = req.params;
@@ -133,7 +187,24 @@ function updateValidate(req, res, next) {
 module.exports = {
     list,
     read: [orderExists, read],
-    create: [hasAllProps, create],
-    update: [orderExists, hasAllProps, updateValidate, update],
+    create: [
+        deliverToValidation,
+        mobileNumberValidation,
+        dishesValidation,
+        dishesArrayValidation,
+        dishOfDishesValidation,
+        create],
+    update: [
+        orderExists, 
+        deliverToValidation,
+        mobileNumberValidation,
+        dishesValidation,
+        dishesArrayValidation,
+        dishOfDishesValidation,
+        idValidation,
+        statusPendingValidation,
+        statusDeliveredValidation,  
+        update
+    ],
     delete: [orderExists, deleteValidate, destroy]
 }

@@ -17,6 +17,7 @@ function dishExists(req, res, next) {
     const { dishId } = req.params;
     const foundDish = dishes.find((dish) => dish.id === dishId);
     if (foundDish) {
+        res.locals.dish = foundDish;
         return next();
     }
     next({
@@ -28,6 +29,7 @@ function dishExists(req, res, next) {
 function nameValidation(req, res, next) {
     const { data: { name } = {} } = req.body;
     if (name && name != "") {
+        res.locals.name = name;
         return next();
     }
     next({
@@ -39,6 +41,7 @@ function nameValidation(req, res, next) {
 function descriptionValidation(req, res, next) {
     const { data: { description } = {} } = req.body;
     if (description && description != "") {
+        res.locals.description = description;
         return next();
     }
     next({
@@ -50,6 +53,7 @@ function descriptionValidation(req, res, next) {
 function priceValidation(req, res, next) {
     const { data: { price } = {} } = req.body;
     if (price && price != "") {
+        res.locals.price = price;
         return next();
     }
     next({
@@ -72,6 +76,7 @@ function priceNumberValidation(req, res, next) {
 function imageValidation(req, res, next) {
     const { data: { image_url } = {} } = req.body;
     if (image_url && image_url != "") {
+        res.locals.image_url = image_url;
         return next();
     }
     next({
@@ -84,6 +89,7 @@ function dishIDValidation(req, res, next) {
     const { dishId } = req.params;
     const { id } = req.body.data;
     if (!id || id === dishId) {
+        res.locals.id = dishId;
       return next();
     } else {
       next({
@@ -102,12 +108,13 @@ function read(req, res) {
 
 function create(req, res) {
     const { data: { name, description, price, image_url } = {} } = req.body;
+    const id = nextId();
     const newDish = {
-        id: nextId(), // provided by API utils
-        name: name,
-        description: description,
-        price: price,
-        image_url: image_url
+        id, 
+        name,
+        description,
+        price,
+        image_url
     };
     dishes.push(newDish);
     res.status(201).json({ data: newDish });
